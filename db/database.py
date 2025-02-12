@@ -6,11 +6,14 @@ import pyodbc
 def get_db_connection():
     """Establece la conexion y retorna la conexion a la BD SQL Server"""
     load_dotenv(".env")
+
     SQL_HOST = getenv("SQL_HOST")
     SQL_USER = getenv("SQL_USER")
     SQL_PASS = getenv("SQL_PASS")
     SQL_PORT = getenv("SQL_PORT")
     SQL_DATABASE = getenv("SQL_DATABASE")
+
+    print(f"HOST: {SQL_HOST}")
 
     # asegurando que todas las variables de entorno estan definidas y no vacias
     if not all([SQL_HOST, SQL_USER, SQL_PASS, SQL_PORT, SQL_DATABASE]):
@@ -18,15 +21,18 @@ def get_db_connection():
 
     # Preparando la cadena de conexion
     url_siscont = (
-        f"DRIVER=ODBC Driver 17 for SQL SERVER;"
+        f"DRIVER=ODBC Driver 17 for SQL Server;"
         f"SERVER={SQL_HOST};"
         f"PORT={SQL_PORT};"
         f"DATABASE={SQL_DATABASE};"
         f"UID={SQL_USER};"
-        f"PWD={SQL_PASS}"
+        f"PWD={SQL_PASS};"
+        f"Timeout=0"
     )
+    print(f"URL_SISCONT: {url_siscont}")
     try:
         conn = pyodbc.connect(url_siscont)
+        print(f"conn: {conn}")
         return conn
     except pyodbc.Error as ex:
         sqlstate = ex.args[0]
