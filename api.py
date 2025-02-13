@@ -1,5 +1,5 @@
 from typing import List, Dict
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from os import getenv
 from db.database import get_db_connection, get_db_cursor
@@ -93,6 +93,45 @@ async def get_tables():
     finally:
         cursor.close()
         conn.close()
+
+
+@app.get("/table-structure/{table_name}", tags=["Database"])
+async def get_table_structure(table_name: str):
+    conn = get_db_connection()
+    if not conn:
+        raise HTTPException(status_code=500, detail="No se pudo conectar con la bd")
+
+    cursor = get_db_cursor(conn)
+    if not cursor:
+        conn.close()
+        raise HTTPException(
+            status_code=500, detail="No se pudo crear el cursor de conexion a la bd"
+        )
+
+    query = """
+    SELECT COLUMN_NAME, DATA_TYPE, CHARACTER_MAXIMUM_LENGTH, IS_NULLABLE
+    FROM INFORMATION_SCHEMA.COLUMNS
+    WHERE TABLE_NAME = ? """
+
+    cursor.execute(query, table_name)
+    columns = cursor.fetchall()
+
+    if not columns:
+        raise HTTPException(status_code=404, detail="No existe la tabla")
+
+    # Formateando la respuesta
+    table_structure = []
+    for column in columns:
+        column_info = {
+            "column_name": column.COLUMN_NAME,
+            "data_type": column.DATA_TYPE,
+            "max_length": column.CHARACTER_MAXIMUM_LENGTH,
+            "is_nullable": column.IS_NULLABLE,
+        }
+        table_structure.append(column_info)
+
+    conn.close()
+    return {"table_name": table_name, "columns": table_structure}
 
 
 # @app.get(
