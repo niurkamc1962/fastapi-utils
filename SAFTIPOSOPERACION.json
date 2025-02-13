@@ -1,0 +1,35 @@
+{
+    "table_name": "SAFTIPOSOPERACION",
+    "data": [
+        {
+            "IdInternoTipoOperacion": 1,
+            "NClMACodigoTipoOperacion": "1",
+            "NClMADescripcionTipoOperacion": "Altas          "
+        },
+        {
+            "IdInternoTipoOperacion": 2,
+            "NClMACodigoTipoOperacion": "2",
+            "NClMADescripcionTipoOperacion": "Bajas          "
+        },
+        {
+            "IdInternoTipoOperacion": 3,
+            "NClMACodigoTipoOperacion": "3",
+            "NClMADescripcionTipoOperacion": "Traslados      "
+        },
+        {
+            "IdInternoTipoOperacion": 4,
+            "NClMACodigoTipoOperacion": "4",
+            "NClMADescripcionTipoOperacion": "Actualizacion  "
+        },
+        {
+            "IdInternoTipoOperacion": 5,
+            "NClMACodigoTipoOperacion": "6",
+            "NClMADescripcionTipoOperacion": "Avaluo         "
+        },
+        {
+            "IdInternoTipoOperacion": 6,
+            "NClMACodigoTipoOperacion": "5",
+            "NClMADescripcionTipoOperacion": "UBMC           "
+        }
+    ]
+}

@@ -4,6 +4,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from os import getenv
 from db.database import get_db_connection, get_db_cursor
 import pyodbc
+import json
 
 app = FastAPI()
 
@@ -63,7 +64,7 @@ async def check_db_connection():
         )
 
 
-# Endpoint para leer la estructura de la tabla seleccionada
+# Endpoint que muestra todas las tablas de la BD Siscont
 @app.get("/tables", tags=["Database"], response_model=Dict[str, List[str] | int])
 async def get_tables():
     """Retornando lista de los nombres de las tablas y el total de tablas"""
@@ -95,6 +96,7 @@ async def get_tables():
         conn.close()
 
 
+# Endpoint que muestra la estructura de la tabla seleccionada
 @app.get("/table-structure/{table_name}", tags=["Database"])
 async def get_table_structure(table_name: str):
     conn = get_db_connection()
@@ -134,61 +136,40 @@ async def get_table_structure(table_name: str):
     return {"table_name": table_name, "columns": table_structure}
 
 
-# @app.get(
-#     "/table/{table_name}",
-#     tags=["Database"],
-#     response_model=Dict[str, List[Dict[str, Any]]],
-# )
-# async def get_table_structure(table_name: str):
-#     """
-#     Retorna la estructura de la tabla especificada.
-#     """
-#     conn = get_db_connection()
-#     if not conn:
-#         raise HTTPException(status_code=500, detail="No se pudo conectar con la bd")
+# Endpoint que convierte la tabla seleccionada a fichero JSON
+@app.get("/table-data/{table_name}", tags=["Database"])
+async def get_table_structure(table_name: str):
+    conn = get_db_connection()
+    if not conn:
+        raise HTTPException(status_code=500, detail="No se pudo conectar con la bd")
 
-#     cursor = get_db_cursor(conn)
-#     if not cursor:
-#         conn.close()
-#         raise HTTPException(
-#             status_code=500, detail="No se pudo crear el cursor de conexion a la bd"
-#         )
+    cursor = get_db_cursor(conn)
+    if not cursor:
+        conn.close()
+        raise HTTPException(
+            status_code=500, detail="No se pudo crear el cursor de conexion a la bd"
+        )
 
-#     try:
-#         cursor.execute(
-#             f"""
-#             SELECT
-#                 COLUMN_NAME,
-#                 DATA_TYPE,
-#                 CHARACTER_MAXIMUM_LENGTH,
-#                 IS_NULLABLE
-#             FROM
-#                 INFORMATION_SCHEMA.COLUMNS
-#             WHERE
-#                 TABLE_NAME = '{table_name}'
-#         """
-#         )
+    # Consulta para obtener los datos de la tabla
+    query = f"SELECT * FROM {table_name}"
+    cursor.execute(query)
+    rows = cursor.fetchall()
 
-#         columns = []
-#         for row in cursor.fetchall():
-#             columns.append(
-#                 {
-#                     "column_name": row.COLUMN_NAME,
-#                     "data_type": row.DATA_TYPE,
-#                     "max_length": row.CHARACTER_MAXIMUM_LENGTH,
-#                     "is_nullable": row.IS_NULLABLE,
-#                 }
-#             )
+    # Obteniendo los nombres de las columnas
+    columns = [column[0] for column in cursor.description]
 
-#         if not columns:
-#             raise HTTPException(
-#                 status_code=404, detail=f"Tabla '{table_name}' no encontrada"
-#             )
+    # Convirtiendo los datos a formato JSON
+    table_data = []
+    for row in rows:
+        row_data = dict(zip(columns, row))
+        table_data.append(row_data)
 
-#         return {"table_name": table_name, "columns": columns}
+    # Guardar los datos en un archivo JSON
+    with open(f"{table_name}.json", "w") as json_file:
+        json.dump({"table_name": table_name, "data": table_data}, json_file, indent=4)
 
-#     except Exception as e:
-#         raise HTTPException(status_code=500, detail=str(e))
-#     finally:
-#         cursor.close()
-#         conn.close()
+    cursor.close()
+    conn.close()
+
+    # Retornando la tabla en formato JSON
+    return {"table_name": table_name, "data": table_data}
