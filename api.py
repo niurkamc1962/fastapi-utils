@@ -5,6 +5,8 @@ from os import getenv
 from db.database import get_db_connection, get_db_cursor
 import pyodbc
 import json
+from datetime import datetime
+from decimal import Decimal
 
 app = FastAPI()
 
@@ -18,6 +20,15 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+# Función para convertir tipos de datos personalizados a formatos JSON compatibles
+def convert_custom_types(obj):
+    if isinstance(obj, datetime):
+        return obj.isoformat()  # Convierte datetime a string ISO 8601
+    elif isinstance(obj, Decimal):
+        return float(obj)  # Convierte Decimal a float
+    raise TypeError(f"Tipo no serializable {type(obj)}")
 
 
 @app.get("/", tags=["Root"])
@@ -166,7 +177,12 @@ async def get_table_structure(table_name: str):
 
     # Guardar los datos en un archivo JSON
     with open(f"{table_name}.json", "w") as json_file:
-        json.dump({"table_name": table_name, "data": table_data}, json_file, indent=4)
+        json.dump(
+            {"table_name": table_name, "data": table_data},
+            json_file,
+            indent=4,
+            default=convert_custom_types,
+        )
 
     cursor.close()
     conn.close()
