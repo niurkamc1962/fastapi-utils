@@ -1,7 +1,7 @@
 from typing import List, Dict
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
-from os import getenv
+from os import getenv, path, makedirs
 from db.database import get_db_connection, get_db_cursor
 import pyodbc
 import json
@@ -22,12 +22,15 @@ app.add_middleware(
 )
 
 
-# Función para convertir tipos de datos personalizados a formatos JSON compatibles
+# Funcion para convertir objetos Decimal a str para no perder los decimales,
+# las fechas a formato ISO porque los JSON no serializan campos decimal ni datetime
 def convert_custom_types(obj):
-    if isinstance(obj, datetime):
-        return obj.isoformat()  # Convierte datetime a string ISO 8601
-    elif isinstance(obj, Decimal):
-        return float(obj)  # Convierte Decimal a float
+    if isinstance(obj, Decimal):
+        return float(obj)  # convierte decimal a flotante
+    elif isinstance(obj, datetime):
+        return obj.strftime(
+            "%Y-%m-%d %H:%M:%S"
+        )  # convertir datetime a string en formato ISO 8601
     raise TypeError(f"Tipo no serializable {type(obj)}")
 
 
@@ -161,31 +164,42 @@ async def get_table_structure(table_name: str):
             status_code=500, detail="No se pudo crear el cursor de conexion a la bd"
         )
 
-    # Consulta para obtener los datos de la tabla
-    query = f"SELECT * FROM {table_name}"
-    cursor.execute(query)
-    rows = cursor.fetchall()
+    try:
+        # definiendo la carpeta donde se guardaran los archivos json
+        output_folder = "archivos_json"
+        # creando la carpeta si no existe
+        if not path.exists(output_folder):
+            makedirs(output_folder)
 
-    # Obteniendo los nombres de las columnas
-    columns = [column[0] for column in cursor.description]
+        # Consulta para obtener los datos de la tabla
+        query = f"SELECT * FROM {table_name}"
+        cursor.execute(query)
+        rows = cursor.fetchall()
 
-    # Convirtiendo los datos a formato JSON
-    table_data = []
-    for row in rows:
-        row_data = dict(zip(columns, row))
-        table_data.append(row_data)
+        # Obteniendo los nombres de las columnas
+        columns = [column[0] for column in cursor.description]
 
-    # Guardar los datos en un archivo JSON
-    with open(f"{table_name}.json", "w") as json_file:
-        json.dump(
-            {"table_name": table_name, "data": table_data},
-            json_file,
-            indent=4,
-            default=convert_custom_types,
-        )
+        # Convirtiendo los datos a formato JSON
+        table_data = []
+        for row in rows:
+            row_data = dict(zip(columns, row))
+            table_data.append(row_data)
 
-    cursor.close()
-    conn.close()
+        file_path = path.join(output_folder, f"{table_name}.json")
 
-    # Retornando la tabla en formato JSON
-    return {"table_name": table_name, "data": table_data}
+        # Guardar los datos en un archivo JSON
+        with open(file_path, "w") as json_file:
+            json.dump(
+                {"table_name": table_name, "data": table_data},
+                json_file,
+                indent=4,
+                default=convert_custom_types,
+            )
+        # Retornando la tabla en formato JSON
+        return {"table_name": table_name, "data": table_data}
+    except Exception as e:
+        raise HTTPException(code=500, detail=f"Error al procesar la tabla: {e}")
+
+    finally:
+        cursor.close()
+        conn.close()
